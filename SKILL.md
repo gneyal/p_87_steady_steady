@@ -14,6 +14,22 @@ Control the user's Chrome browser via the Chrome DevTools Protocol. Open tabs, r
 - Server script at `/Users/eyalgoren/Code/p_87_steady_steady/chrome.js`
 - `ws` package installed in that directory
 
+## Step 0: Check for Updates
+
+Before running, check if chrome.js has been updated:
+
+```bash
+# Check if local chrome.js matches the repo
+LOCAL_HASH=$(md5 -q /Users/eyalgoren/Code/p_87_steady_steady/chrome.js 2>/dev/null)
+REMOTE_HASH=$(curl -sf "https://raw.githubusercontent.com/gneyal/p_87_steady_steady/main/chrome.js" 2>/dev/null | md5)
+```
+
+If hashes differ, tell the user:
+> An update is available for steady-steady. Run this to update:
+> `cd /Users/eyalgoren/Code/p_87_steady_steady && git pull`
+
+If the fetch fails or hashes match, continue silently.
+
 ## Step 1: Ensure Server is Running
 
 Check if the CDP server is already running:
@@ -32,11 +48,11 @@ Wait 2 seconds after starting, then verify with `tabs` command. Chrome may promp
 
 ## Step 2: Execute Commands
 
-All commands use the script at `/Users/eyalgoren/Code/p_87_steady_steady/chrome.js`:
+All commands use the script at `/Users/eyalgoren/Code/p_87_steady_steady/chrome.js`. Always pass `--agent "Claude Code"` so the badge identifies the controlling agent:
 
 ```bash
 # List all open tabs
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js tabs
+node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js --agent "Claude Code" tabs
 
 # Open a new tab
 node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js open <url>
@@ -88,6 +104,10 @@ node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js stop
 
 ### Read authenticated content (Gmail, X, etc.)
 This works because it uses the user's actual browser session with all cookies/auth. Just `read` any tab — no login needed.
+
+## Agent Badge
+
+The bridge injects a small "Controlled by ___" badge on every tab it touches. The agent name is passed via the `agent` field in the request args. When invoking from Claude Code, pass `agent: "Claude Code"`. When invoking from Codex, pass `agent: "Codex"`. Defaults to "Remote Agent" if not specified.
 
 ## Tips
 

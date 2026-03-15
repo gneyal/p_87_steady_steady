@@ -54,7 +54,8 @@ function startServer() {
     req.on('end', async () => {
       try {
         const { action, args } = JSON.parse(body);
-        const result = await handleAction(action, args, send, sessions);
+        const agentName = args.agent || process.env.AGENT_NAME || 'Remote Agent';
+        const result = await handleAction(action, args, send, sessions, agentName);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, result }));
       } catch (e) {
@@ -80,14 +81,22 @@ async function resolveTargetId(partialId, send) {
   return match.targetId;
 }
 
-async function getSession(targetId, send, sessions) {
-  if (sessions.has(targetId)) return sessions.get(targetId);
-  const msg = await send('Target.attachToTarget', { targetId, flatten: true });
-  sessions.set(targetId, msg.result.sessionId);
-  return msg.result.sessionId;
+function getBadgeJS(agentName) {
+  return `if(!document.getElementById('steady-steady-badge')){const d=document.createElement('div');d.id='steady-steady-badge';d.innerHTML='Controlled by ${agentName}';d.style.cssText='position:fixed;bottom:20px;right:20px;background:#1a1a2e;color:#fff;padding:12px 20px;border-radius:8px;font-family:monospace;font-size:14px;z-index:999999;box-shadow:0 4px 12px rgba(0,0,0,0.3);border:1px solid #e94560;pointer-events:none';document.body.appendChild(d)}`;
 }
 
-async function handleAction(action, args, send, sessions) {
+async function getSession(targetId, send, sessions, agentName) {
+  if (!sessions.has(targetId)) {
+    const msg = await send('Target.attachToTarget', { targetId, flatten: true });
+    sessions.set(targetId, msg.result.sessionId);
+  }
+  const sid = sessions.get(targetId);
+  // Inject badge on every interaction (idempotent — checks for existing badge)
+  send('Runtime.evaluate', { expression: getBadgeJS(agentName) }, sid).catch(() => {});
+  return sid;
+}
+
+async function handleAction(action, args, send, sessions, agentName) {
   // Resolve partial target IDs for commands that need them
   if (args.targetId && args.targetId.length < 32) {
     args.targetId = await resolveTargetId(args.targetId, send);
@@ -112,24 +121,24 @@ async function handleAction(action, args, send, sessions) {
       return { closed: args.targetId };
     }
     case 'read': {
-      const sessionId = await getSession(args.targetId, send, sessions);
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
       const msg = await send('Runtime.evaluate', { expression: 'document.body.innerText', returnByValue: true }, sessionId);
       return { text: msg.result.result.value };
     }
     case 'navigate': {
-      const sessionId = await getSession(args.targetId, send, sessions);
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
       await send('Page.navigate', { url: args.url }, sessionId);
       return { navigated: args.url };
     }
     case 'screenshot': {
-      const sessionId = await getSession(args.targetId, send, sessions);
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
       const msg = await send('Page.captureScreenshot', { format: 'png' }, sessionId);
       const outFile = args.outFile || '/tmp/screenshot.png';
       fs.writeFileSync(outFile, Buffer.from(msg.result.data, 'base64'));
       return { saved: outFile };
     }
     case 'js': {
-      const sessionId = await getSession(args.targetId, send, sessions);
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
       const msg = await send('Runtime.evaluate', { expression: args.expression, returnByValue: true }, sessionId);
       return msg.result.result;
     }
@@ -158,7 +167,15 @@ async function client(action, args) {
 }
 
 async function main() {
-  const [cmd, ...rest] = process.argv.slice(2);
+  const argv = process.argv.slice(2);
+  // Extract --agent flag
+  let agent;
+  const agentIdx = argv.indexOf('--agent');
+  if (agentIdx !== -1) {
+    agent = argv[agentIdx + 1];
+    argv.splice(agentIdx, 2);
+  }
+  const [cmd, ...rest] = argv;
 
   if (cmd === 'serve') {
     startServer();
@@ -170,31 +187,31 @@ async function main() {
     let result;
     switch (cmd) {
       case 'tabs':
-        result = await client('tabs', {});
+        result = await client('tabs', { agent });
         result.forEach(t => console.log(`${t.id}  ${t.title}  |  ${t.url}`));
         break;
       case 'open':
-        result = await client('open', { url: rest[0] });
+        result = await client('open', { url: rest[0], agent });
         console.log('Opened:', result.opened, '| targetId:', result.targetId);
         break;
       case 'close':
-        result = await client('close', { targetId: rest[0] });
+        result = await client('close', { targetId: rest[0], agent });
         console.log('Closed:', result.closed);
         break;
       case 'read':
-        result = await client('read', { targetId: rest[0] });
+        result = await client('read', { targetId: rest[0], agent });
         console.log(result.text);
         break;
       case 'navigate':
-        result = await client('navigate', { targetId: rest[0], url: rest[1] });
+        result = await client('navigate', { targetId: rest[0], url: rest[1], agent });
         console.log('Navigated to:', result.navigated);
         break;
       case 'screenshot':
-        result = await client('screenshot', { targetId: rest[0], outFile: rest[1] });
+        result = await client('screenshot', { targetId: rest[0], outFile: rest[1], agent });
         console.log('Saved screenshot to:', result.saved);
         break;
       case 'js':
-        result = await client('js', { targetId: rest[0], expression: rest.slice(1).join(' ') });
+        result = await client('js', { targetId: rest[0], expression: rest.slice(1).join(' '), agent });
         console.log(JSON.stringify(result, null, 2));
         break;
       case 'stop':
