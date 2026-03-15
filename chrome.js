@@ -142,6 +142,63 @@ async function handleAction(action, args, send, sessions, agentName) {
       const msg = await send('Runtime.evaluate', { expression: args.expression, returnByValue: true }, sessionId);
       return msg.result.result;
     }
+    case 'clear': {
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
+      // Select all via keyboard (Cmd+A / Ctrl+A) then Backspace — keeps editor warm
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'a', code: 'KeyA', commands: ['selectAll'] }, sessionId);
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA' }, sessionId);
+      await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }, sessionId);
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 }, sessionId);
+      return { cleared: true };
+    }
+    case 'insert': {
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
+      await send('Input.insertText', { text: args.text }, sessionId);
+      return { inserted: args.text.length + ' chars' };
+    }
+    case 'type': {
+      const sessionId = await getSession(args.targetId, send, sessions, agentName);
+      const text = args.text;
+      // No warmup before typing — we clean up after instead
+      for (const char of text) {
+        if (char === '\n') {
+          await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, sessionId);
+          await send('Input.dispatchKeyEvent', { type: 'char', text: '\r' }, sessionId);
+          await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, sessionId);
+        } else {
+          await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: char }, sessionId);
+          await send('Input.dispatchKeyEvent', { type: 'char', text: char }, sessionId);
+          await send('Input.dispatchKeyEvent', { type: 'keyUp', key: char }, sessionId);
+        }
+      }
+      // Post-typing verification: check if first char was eaten, fix if needed
+      const verifyMsg = await send('Runtime.evaluate', {
+        expression: `(() => {
+          const el = document.querySelector('[data-testid="tweetTextarea_0"]') || document.activeElement;
+          const content = el.innerText || '';
+          return content.substring(0, 5);
+        })()`,
+        returnByValue: true
+      }, sessionId);
+      const actual = verifyMsg.result && verifyMsg.result.value || '';
+      const expected = text.substring(0, 5);
+      if (actual && expected && !actual.startsWith(expected.charAt(0)) && actual.startsWith(expected.substring(1))) {
+        // First char was eaten — prepend it via DOM
+        await send('Runtime.evaluate', {
+          expression: `(() => {
+            const el = document.querySelector('[data-testid="tweetTextarea_0"]') || document.activeElement;
+            const first = el.firstChild;
+            if (first && first.firstChild) {
+              first.firstChild.textContent = '${text.charAt(0)}' + first.firstChild.textContent;
+            } else if (first) {
+              first.textContent = '${text.charAt(0)}' + first.textContent;
+            }
+            el.dispatchEvent(new Event('input', {bubbles: true}));
+          })()`
+        }, sessionId);
+      }
+      return { typed: text.length + ' chars' };
+    }
     default:
       throw new Error(`Unknown action: ${action}`);
   }
@@ -213,6 +270,10 @@ async function main() {
       case 'js':
         result = await client('js', { targetId: rest[0], expression: rest.slice(1).join(' '), agent });
         console.log(JSON.stringify(result, null, 2));
+        break;
+      case 'type':
+        result = await client('type', { targetId: rest[0], text: rest.slice(1).join(' '), agent });
+        console.log('Typed:', result.typed);
         break;
       case 'stop':
         const pid = fs.readFileSync(PID_FILE, 'utf8').trim();
