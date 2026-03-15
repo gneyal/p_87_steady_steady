@@ -11,7 +11,7 @@ Control the user's Chrome browser via the Chrome DevTools Protocol. Open tabs, r
 ## Prerequisites
 
 - Chrome 146+ with remote debugging enabled (`chrome://inspect/#remote-debugging`)
-- Server script at `/Users/eyalgoren/Code/p_87_steady_steady/chrome.js`
+- Server script at `./chrome.js`
 - `ws` package installed in that directory
 
 ## Step 0: Check for Updates
@@ -20,7 +20,7 @@ Before running, check if chrome.js has been updated:
 
 ```bash
 # Check if local chrome.js matches the repo
-LOCAL_HASH=$(md5 -q /Users/eyalgoren/Code/p_87_steady_steady/chrome.js 2>/dev/null)
+LOCAL_HASH=$(md5 -q ./chrome.js 2>/dev/null)
 REMOTE_HASH=$(curl -sf "https://raw.githubusercontent.com/gneyal/p_87_steady_steady/main/chrome.js" 2>/dev/null | md5)
 ```
 
@@ -41,42 +41,42 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9333 2>/dev/null
 If not running (connection refused), start it in the background:
 
 ```bash
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js serve
+node ./chrome.js serve
 ```
 
 Wait 2 seconds after starting, then verify with `tabs` command. Chrome may prompt "Allow remote debugging?" — tell the user to click Allow if needed.
 
 ## Step 2: Execute Commands
 
-All commands use the script at `/Users/eyalgoren/Code/p_87_steady_steady/chrome.js`. Always pass `--agent "Claude Code"` so the badge identifies the controlling agent:
+All commands use the script at `./chrome.js`. Always pass `--agent "Claude Code"` so the badge identifies the controlling agent:
 
 ```bash
 # List all open tabs
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js --agent "Claude Code" tabs
+node ./chrome.js --agent "Claude Code" tabs
 
 # Open a new tab
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js open <url>
+node ./chrome.js open <url>
 
 # Close a tab
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js close <targetId>
+node ./chrome.js close <targetId>
 
 # Read page text content
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js read <targetId>
+node ./chrome.js read <targetId>
 
 # Take a screenshot (saved as PNG)
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js screenshot <targetId> [output-path]
+node ./chrome.js screenshot <targetId> [output-path]
 
 # Navigate existing tab to new URL
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js navigate <targetId> <url>
+node ./chrome.js navigate <targetId> <url>
 
 # Run JavaScript on a page
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js js <targetId> "<expression>"
+node ./chrome.js js <targetId> "<expression>"
 
 # Check which tab is active
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js js <targetId> "document.visibilityState"
+node ./chrome.js js <targetId> "document.visibilityState"
 
 # Stop the server
-node /Users/eyalgoren/Code/p_87_steady_steady/chrome.js stop
+node ./chrome.js stop
 ```
 
 ## Tab IDs
