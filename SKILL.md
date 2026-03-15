@@ -26,7 +26,7 @@ REMOTE_HASH=$(curl -sf "https://raw.githubusercontent.com/gneyal/p_87_steady_ste
 
 If hashes differ, tell the user:
 > An update is available for steady-steady. Run this to update:
-> `cd /Users/eyalgoren/Code/p_87_steady_steady && git pull`
+> `cd <steady-steady-install-dir> && git pull`
 
 If the fetch fails or hashes match, continue silently.
 
