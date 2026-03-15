@@ -4,6 +4,29 @@ A Chrome browser bridge for AI coding agents. One persistent WebSocket connectio
 
 Built to give [Claude Code](https://claude.ai/claude-code) (or any terminal-based AI agent) full browser control without extensions.
 
+## "Isn't this just Chrome's CDP?"
+
+Chrome 146 added a remote debugging toggle — so why do you need this?
+
+**Raw CDP** gives you a WebSocket endpoint. That's it. To actually use it, you need to:
+- Write WebSocket connection code for every interaction
+- Handle Chrome's "Allow remote debugging?" prompt on every new connection
+- Manually attach to targets, manage session IDs, parse protocol responses
+- Deal with 32-character hex target IDs
+
+**Steady Steady** wraps all of that into a persistent server + simple CLI:
+
+| Raw CDP | Steady Steady |
+|---------|---------------|
+| New "Allow?" prompt per connection | Click Allow once |
+| 20 lines of WebSocket code per action | `node chrome.js read <tab>` |
+| Manage session IDs yourself | Sessions cached automatically |
+| 32-char hex target IDs | First 8 chars work |
+| No AI agent integration | Comes with a Claude Code skill |
+| No visual feedback | Badge shows which agent is in control |
+
+CDP is the engine. This is the steering wheel.
+
 ## How It Works
 
 ```
