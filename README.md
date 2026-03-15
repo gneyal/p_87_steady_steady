@@ -20,31 +20,26 @@ Chrome Browser (CDP WebSocket :9222)
 
 The server holds one WebSocket connection open to Chrome, so you only click "Allow remote debugging" once. All CLI commands go through the server via HTTP.
 
-## Prerequisites
+## Quick Start
 
-- **Chrome 146+** with remote debugging enabled
-- Go to `chrome://inspect/#remote-debugging` and toggle **"Allow remote debugging for this browser instance"**
-- Node.js 18+
+### 1. Enable Chrome remote debugging
 
-## Setup
+Go to `chrome://inspect/#remote-debugging` and toggle **"Allow remote debugging for this browser instance"**.
+
+Requires Chrome 146+.
+
+### 2. Install and run
 
 ```bash
 git clone https://github.com/gneyal/p_87_steady_steady.git
 cd p_87_steady_steady
 npm install
-```
-
-## Usage
-
-### Start the server
-
-```bash
 node chrome.js serve
 ```
 
 Chrome will prompt "Allow remote debugging?" — click **Allow** once.
 
-### Commands
+### 3. Use it
 
 ```bash
 # List all open tabs
@@ -53,11 +48,11 @@ node chrome.js tabs
 # Open a new tab
 node chrome.js open https://example.com
 
-# Close a tab (use full or partial ID from `tabs`)
-node chrome.js close A107EE39
-
-# Read page text content
+# Read page text content (works on authenticated pages!)
 node chrome.js read A107EE39
+
+# Close a tab
+node chrome.js close A107EE39
 
 # Take a screenshot
 node chrome.js screenshot A107EE39 /tmp/shot.png
@@ -76,7 +71,9 @@ Tab IDs are shown by the `tabs` command. You can use the full 32-char ID or just
 
 ## Use with Claude Code
 
-Add this to your Claude Code settings (`~/.claude/settings.json`) to auto-approve browser commands:
+### Auto-approve browser commands
+
+Add this to your Claude Code settings (`~/.claude/settings.json`):
 
 ```json
 {
@@ -88,7 +85,37 @@ Add this to your Claude Code settings (`~/.claude/settings.json`) to auto-approv
 }
 ```
 
-Then Claude Code can read tweets, navigate pages, extract data from authenticated sites, click buttons, and more — all through your actual logged-in browser session.
+### Install the Claude Code skill (optional)
+
+This teaches Claude Code how to use the browser bridge automatically — it'll know to start the server, look up tabs, read pages, etc. without you explaining anything.
+
+```bash
+mkdir -p ~/.claude/skills/steady-steady
+cp SKILL.md ~/.claude/skills/steady-steady/SKILL.md
+```
+
+Then just ask Claude Code things like:
+- "read this tweet for me" (paste URL)
+- "what tabs do I have open?"
+- "open gmail and check my latest emails"
+- "take a screenshot of the current page"
+
+It uses your actual logged-in browser session — no re-authentication needed.
+
+## What Can You Do With It?
+
+- **Read JS-heavy sites** — tweets, SPAs, anything that needs JavaScript to render
+- **Access authenticated content** — Gmail, dashboards, internal tools — through your logged-in session
+- **Automate browser actions** — click buttons, fill forms, archive emails
+- **Extract data** — scrape content from any page you can see
+- **Take screenshots** — capture any tab as PNG
+- **Run arbitrary JS** — full access to the DOM of any open tab
+
+## Requirements
+
+- Chrome 146+ (for the remote debugging toggle)
+- Node.js 18+
+- macOS (reads Chrome's `DevToolsActivePort` from `~/Library/Application Support/Google/Chrome/`)
 
 ## License
 
