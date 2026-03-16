@@ -1,0 +1,22 @@
+[package]
+name = "steady-steady"
+version = "1.0.0"
+edition = "2021"
+description = "Chrome browser bridge for AI agents — CDP + HTTP + CLI. Rust port of steady-steady."
+license = "MIT"
+
+[[bin]]
+name = "steady"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio", "client-legacy", "http1"] }
+http-body-util = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+clap = { version = "4", features = ["derive"] }
